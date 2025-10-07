@@ -89,8 +89,25 @@ struct QueryAllocator {
 #ifndef MG_MEMORY_PROFILE
   memgraph::utils::ThreadSafeMonotonicBufferResource monotonic{kMonotonicInitialSize, upstream_resource()};
   // memgraph::utils::PoolResource pool{kPoolBlockPerChunk, &monotonic, upstream_resource()};
+
+  class PoolBackedByMonotonic : public memgraph::utils::MemoryResource {
+   public:
+    PoolBackedByMonotonic()
+        : monotonic_{kMonotonicInitialSize, upstream_resource()},
+          pool_{kPoolBlockPerChunk, &monotonic_, upstream_resource()} {}
+
+    void *do_allocate(size_t bytes, size_t alignment) override { return pool_.allocate(bytes, alignment); }
+    void do_deallocate(void *p, size_t bytes, size_t alignment) override { pool_.deallocate(p, bytes, alignment); }
+    bool do_is_equal(const memgraph::utils::MemoryResource &other) const noexcept override { return this == &other; }
+
+   private:
+    memgraph::utils::MonotonicBufferResource monotonic_;
+    memgraph::utils::PoolResource pool_;
+  };
+
   memgraph::utils::ThreadLocalMemoryResource thread_local_pool{[monotonic = &monotonic]() {
     return std::make_unique<memgraph::utils::PoolResource>(kPoolBlockPerChunk, monotonic, upstream_resource());
+    // return std::make_unique<PoolBackedByMonotonic>();
   }};
 #endif
 };

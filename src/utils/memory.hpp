@@ -650,12 +650,7 @@ class ThreadLocalMemoryResource : public MemoryResource {
     upstream->deallocate(p, bytes, alignment);
   }
 
-  bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override {
-    auto *const upstream = ResolveUpstream();
-    // DMG_ASSERT(thread_id_ != -1);
-    DMG_ASSERT(upstream != nullptr);
-    return upstream->is_equal(other);
-  }
+  bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override { return this == &other; }
 
   static thread_local uint16_t thread_id_;  // NOLINT
   std::pmr::memory_resource *default_upstream_{nullptr};
